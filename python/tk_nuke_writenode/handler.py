@@ -1658,6 +1658,9 @@ class TankWriteNodeHandler(object):
         # use %V - full view printout as default for the eye field
         fields["eye"] = "%V"
 
+        # use %V - full view printout as default for the eye field
+        fields["colorspace"] = node.knob('colorspace').value()
+
         # add in width & height:
         fields["width"] = width
         fields["height"] = height
@@ -1818,6 +1821,9 @@ class TankWriteNodeHandler(object):
         mechanism allows the code to ignore other callbacks that may fail because things aren't set
         up correctly (e.g. knobChanged calls for default values when loading a script).
         """
+        if node.Class() == 'Write':
+            return True
+
         if not node.knob("tk_is_fully_constructed"):
             return False
         
@@ -1834,7 +1840,14 @@ class TankWriteNodeHandler(object):
         node = nuke.thisNode()
         knob = nuke.thisKnob()
         grp = nuke.thisGroup()
-        
+
+        if node.Class() == 'Write':
+            if knob.name() == "colorspace":
+                print "colorspace:", knob.value()
+                print "node.fullname", node.fullName()
+                self.reset_render_path(nuke.thisParent())
+                return
+
         if not self.__is_node_fully_constructed(node):
             # knobChanged will be called during script load for all knobs with non-default 
             # values.  We want to ignore these implicit changes so we make use of a knob to
@@ -1869,7 +1882,6 @@ class TankWriteNodeHandler(object):
             if name_as_output:
                 # update output to reflect the node name:
                 self.__set_output(node, node.knob("name").value())
-                
         else:
             # Propogate changes to certain knobs from the gizmo/group to the
             # encapsulated Write node.

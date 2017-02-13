@@ -216,6 +216,7 @@ Gizmo {
  }
  addUserKnob {
     41 colorspace 
+    l "colorspace"
     T Write1.colorspace
  }
  addUserKnob {
@@ -429,6 +430,8 @@ Gizmo {
   name Write1
   xpos 195
   ypos -34
+  knobChanged "import nuke\nif hasattr(nuke, \"_shotgun_write_node_handler\"):\n    nuke._shotgun_write_node_handler.on_knob_changed_gizmo_callback()"
+
  }
 set N11879e50 [stack 0]
  Output {
