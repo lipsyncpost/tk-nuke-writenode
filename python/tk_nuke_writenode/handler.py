@@ -301,7 +301,12 @@ class TankWriteNodeHandler(object):
             # write gizmo that does not have the create thumbnail node
             return None
         th_node.knob("disable").setValue(False)
-        
+   
+        # rather that re-render the script make use of the existing render  
+        w_node = node.node("Write1")
+        if w_node:
+            w_node.knob("reading").setValue(True)
+
         png_path = tempfile.NamedTemporaryFile(suffix=".png", prefix="tanktmp", delete=False).name
 
         # set render output - make sure to use a path with slashes on all OSes
@@ -336,6 +341,8 @@ class TankWriteNodeHandler(object):
             th_node.knob("file").setValue("")
             th_node.knob("proxy").setValue("")
             th_node.knob("disable").setValue(True)
+            if w_node:
+                w_node.knob("reading").setValue(False)
 
         return png_path
 
