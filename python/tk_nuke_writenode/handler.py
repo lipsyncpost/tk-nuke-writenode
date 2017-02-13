@@ -1665,8 +1665,11 @@ class TankWriteNodeHandler(object):
         # use %V - full view printout as default for the eye field
         fields["eye"] = "%V"
 
-        # use %V - full view printout as default for the eye field
-        fields["colorspace"] = node.knob('colorspace').value()
+        # get the colourspace or set to raw if raw data checked
+        if node.knob('raw').value():
+            fields["colorspace"] = "raw"
+        else:
+            fields["colorspace"] = node.knob('colorspace').value()
 
         # add in width & height:
         fields["width"] = width
@@ -1851,6 +1854,11 @@ class TankWriteNodeHandler(object):
         if node.Class() == 'Write':
             if knob.name() == "colorspace":
                 print "colorspace:", knob.value()
+                print "node.fullname", node.fullName()
+                self.reset_render_path(nuke.thisParent())
+                return
+            elif knob.name() == "raw":
+                print "raw data"
                 print "node.fullname", node.fullName()
                 self.reset_render_path(nuke.thisParent())
                 return
