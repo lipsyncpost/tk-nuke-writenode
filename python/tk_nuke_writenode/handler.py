@@ -1155,10 +1155,7 @@ class TankWriteNodeHandler(object):
             self.reset_render_path(node)
 
     def __populate_initial_output_name(self, template, node):
-        """
-        Create a suitable output name for a node based on it's profile and
-        the other nodes that already exist in the scene.
-        """
+         
         if node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value():
             # don't want to modify the current value if there is one
             return
@@ -1178,13 +1175,23 @@ class TankWriteNodeHandler(object):
                 if output_is_optional:
                     output_is_optional = template.is_optional(key_name)                
         if not have_output_key:
+            self._app.log_debug("No output key")
             # Nothing to do!
             return
-        
+
+        if output_default:
+            if output_default in node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values():
+                node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue(output_default)
+            elif 'custom' in node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values():
+                node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue('custom')
+
         if output_default is None:
-            # no default name - use hard coded built in
-            output_default = "output"
-        
+            values = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values()
+            self._app.log_debug("Valid output options are %s" % values)
+            output_default = values[0]
+            node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue(output_default)
+
+
         # get the output names for all other nodes that are using the same profile
         used_output_names = set()
         node_profile = self.get_node_profile_name(node)
@@ -1205,7 +1212,9 @@ class TankWriteNodeHandler(object):
             postfix += 1
         
         # finally, set the output name on the knob:
+        self._app.log_debug("Default output is %s" % output_default)
         node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).setValue(output_name)
+
 
     def __populate_format_settings(
         self, node, file_type, file_settings, reset_all_settings=False, promoted_write_knobs=None
@@ -1836,10 +1845,6 @@ class TankWriteNodeHandler(object):
 
         output_options = list(self._output_options)
         current_output_option = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).value()
-        if current_output_option and current_output_option not in self._output_options:
-            # Handle the case where node has been recreated from a standard write node 
-            # and the previous option is no longer in the list
-           output_options.insert(0, current_output_option)
         list_options = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values()
         if list_options != output_options:
             node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValues(output_options)
@@ -1913,9 +1918,25 @@ class TankWriteNodeHandler(object):
             self.__set_profile(node, new_profile_name, reset_all_settings=True)
         
         elif knob.name() == TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME:
-            new_output_name = knob.value()
+            output_name = knob.value()
+
+            used_output_names = set()
+            node_profile = self.get_node_profile_name(node)
+            for n in self.get_nodes():
+                if n != node and self.get_node_profile_name(n) == node_profile:
+                    used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
+
+
+
+            # # now ensure output name is unique:
+            postfix = 1
+            output_base = output_name
+            while output_name in used_output_names:
+                output_name = "%s%d" % (output_base, postfix)
+                postfix += 1
+        
             node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).setValue(False)
-            self.__set_output(node, new_output_name)
+            self.__set_output(node, output_name)
 
         elif knob.name() == TankWriteNodeHandler.OUTPUT_KNOB_NAME:
             # internal cached output has been changed!
