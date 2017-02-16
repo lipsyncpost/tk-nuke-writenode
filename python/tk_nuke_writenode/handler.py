@@ -54,6 +54,7 @@ class TankWriteNodeHandler(object):
         self._promoted_knobs = {}
         self._profile_names = []
         self._profiles = {}
+        self._output_options = []
         
         self.__currently_rendering_nodes = set()
         self.__node_computed_path_settings_cache = {}
@@ -63,6 +64,7 @@ class TankWriteNodeHandler(object):
         self.__is_updating_proxy_path = False
 
         self.populate_profiles_from_settings()
+        self.populate_output_options_from_settings()
             
     ################################################################################################
     # Properties
@@ -94,6 +96,12 @@ class TankWriteNodeHandler(object):
             self._profile_names.append(name)
             self._profiles[name] = profile
 
+    def populate_output_options_from_settings(self):
+        """
+        Sources options for the output presets from the current app settings.
+        """
+        self._output_options = self._app.get_setting("output_presets", ['custom'])
+
     def populate_script_template(self):
         """
         Sources the current context's work file template from the parent app.
@@ -122,7 +130,7 @@ class TankWriteNodeHandler(object):
         Return the name of the profile the specified node is using
         """
         return node.knob("profile_name").value()
-    
+
     def get_node_tank_type(self, node):
         """
         Return the tank type for the specified node
@@ -1825,6 +1833,16 @@ class TankWriteNodeHandler(object):
         # ensure that the disable value properly propogates to the internal write node:
         write_node = node.node(TankWriteNodeHandler.WRITE_NODE_NAME)
         write_node["disable"].setValue(node["disable"].value())
+
+        output_options = list(self._output_options)
+        current_output_option = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).value()
+        if current_output_option and current_output_option not in self._output_options:
+            # Handle the case where node has been recreated from a standard write node 
+            # and the previous option is no longer in the list
+           output_options.insert(0, current_output_option)
+        list_options = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values()
+        if list_options != output_options:
+            node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValues(output_options)
 
         # Ensure that the output name matches the node name if
         # that option is enabled on the node. This is primarily

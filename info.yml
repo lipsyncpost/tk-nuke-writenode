@@ -89,6 +89,14 @@ configuration:
                      is used to drive the version and optionally the name of renders."
         fields: context, version, [name], *
 
+    output_presets:
+        type: list
+        values:
+            type: str
+        description: "options to be presented in the Output dropdown list for use as presets. Include 'custom' to allow 
+                      users to set their own output values"
+        default_value: ['custom']
+
 # the Shotgun fields that this app needs in order to operate correctly
 requires_shotgun_fields:
 
