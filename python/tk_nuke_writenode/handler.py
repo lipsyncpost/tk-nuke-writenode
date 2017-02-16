@@ -439,6 +439,11 @@ class TankWriteNodeHandler(object):
             knob.setValue(sg_wn["profile_name"].value())
             new_wn.addKnob(knob)
             
+            # output_dropdown
+            knob = nuke.String_Knob("tk_output_dropdown_choice")
+            knob.setValue(sg_wn[TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME].value())
+            new_wn.addKnob(knob)
+
             # output
             knob = nuke.String_Knob("tk_output")
             knob.setValue(sg_wn[TankWriteNodeHandler.OUTPUT_KNOB_NAME].value())
@@ -497,6 +502,7 @@ class TankWriteNodeHandler(object):
         
             # look for additional toolkit knobs:
             profile_knob = wn.knob("tk_profile_name")
+            output_dropdown = wn.knob("tk_output_dropdown_choice")
             output_knob = wn.knob("tk_output")
             use_name_as_output_knob = wn.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME)
             render_template_knob = wn.knob("tk_render_template")
@@ -505,6 +511,7 @@ class TankWriteNodeHandler(object):
             proxy_publish_template_knob = wn.knob("tk_proxy_publish_template")
         
             if (not profile_knob
+                or not output_dropdown
                 or not output_knob
                 or not use_name_as_output_knob
                 or not render_template_knob
@@ -539,6 +546,7 @@ class TankWriteNodeHandler(object):
             profile_name = profile_knob.value()
             new_sg_wn["profile_name"].setValue(profile_name)
             new_sg_wn["tk_profile_list"].setValue(profile_name)
+            new_sg_wn[TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME].setValue(output_dropdown.value())
             new_sg_wn[TankWriteNodeHandler.OUTPUT_KNOB_NAME].setValue(output_knob.value())
             new_sg_wn[TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME].setValue(use_name_as_output_knob.value())
 
