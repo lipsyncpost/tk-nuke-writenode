@@ -43,8 +43,14 @@ Gizmo {
     +DO_NOT_WRITE
  }
  addUserKnob {
+    4 output_choice 
+    l Output 
+    M {output element dev test custom}
+    t "Choose an output name for this Write Node to help identify it when you have more than one output in your scene."
+ }
+ addUserKnob {
     1 tank_channel 
-    l "Output" 
+    l "Custom Output" 
     t "Choose an output name for this Write Node to help identify it when you have more than one output in your scene." 
     +STARTLINE
  }

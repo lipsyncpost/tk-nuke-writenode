@@ -36,6 +36,7 @@ class TankWriteNodeHandler(object):
     SG_WRITE_DEFAULT_NAME = "ShotgunWrite"
     WRITE_NODE_NAME = "Write1"
 
+    OUTPUT_DROPDOWN_NAME = "output_choice"
     OUTPUT_KNOB_NAME = "tank_channel"
     USE_NAME_AS_OUTPUT_KNOB_NAME = "tk_use_name_as_channel"
 
@@ -877,13 +878,22 @@ class TankWriteNodeHandler(object):
         """
         output_knob = node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME)
         name_as_output_knob = node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME)
+        dropdown_knob = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME)
         
         output_is_used = self.__is_output_used(node)
         name_as_output = name_as_output_knob.value() 
-        
-        output_knob.setEnabled(output_is_used and not name_as_output)
+        dropdown_custom = dropdown_knob.value() == 'custom'
+
+        dropdown_knob.setVisible(output_is_used)
+
+        output_knob.setEnabled(output_is_used and dropdown_custom and not name_as_output)
         output_knob.setVisible(output_is_used)
-        name_as_output_knob.setVisible(output_is_used)    
+        
+        name_as_output_knob.setEnabled(output_is_used and dropdown_custom)
+
+        name_as_output_knob.setVisible(output_is_used)
+
+         
     
     def __update_path_preview(self, node, is_proxy):
         """
@@ -1875,7 +1885,12 @@ class TankWriteNodeHandler(object):
             # change the profile for the specified node:
             new_profile_name = knob.value()
             self.__set_profile(node, new_profile_name, reset_all_settings=True)
-            
+        
+        elif knob.name() == TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME:
+            new_output_name = knob.value()
+            node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).setValue(False)
+            self.__set_output(node, new_output_name)
+
         elif knob.name() == TankWriteNodeHandler.OUTPUT_KNOB_NAME:
             # internal cached output has been changed!
             new_output_name = knob.value()
