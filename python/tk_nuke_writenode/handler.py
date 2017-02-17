@@ -131,6 +131,10 @@ class TankWriteNodeHandler(object):
         """
         return node.knob("profile_name").value()
 
+    def get_node_output_preset(self, node):
+
+        return node.knob("output_preset").value()
+
     def get_node_tank_type(self, node):
         """
         Return the tank type for the specified node
@@ -606,7 +610,9 @@ class TankWriteNodeHandler(object):
         be when the node is created for the first time or when it is loaded
         or imported/pasted from an existing script.
         """
+        self._app.log_error("before_setup")
         self.__setup_new_node(nuke.thisNode())
+        self._app.log_error("after_setup")
 
     def on_compute_path_gizmo_callback(self):
         """
@@ -1153,6 +1159,28 @@ class TankWriteNodeHandler(object):
         # the node automatically updating without the user's knowledge.
         if profile_name != old_profile_name:
             self.reset_render_path(node)
+
+    def __set_output_preset(self, node, new_preset):
+
+        self.__update_knob_value(node, "output_preset", new_preset)
+
+        # Set the output name based on the new preset
+        output_name = new_preset
+
+        used_output_names = set()
+        node_profile = self.get_node_profile_name(node)
+        for n in self.get_nodes():
+            if n != node and self.get_node_profile_name(n) == node_profile:
+                used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
+        # # now ensure output name is unique:
+        postfix = 1
+        output_base = output_name
+        while output_name in used_output_names:
+            output_name = "%s%d" % (output_base, postfix)
+            postfix += 1
+   
+        node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).setValue(False)
+        self.__set_output(node, output_name)
 
     def __populate_initial_output_name(self, template, node):
          
@@ -1844,10 +1872,15 @@ class TankWriteNodeHandler(object):
         write_node["disable"].setValue(node["disable"].value())
 
         output_options = list(self._output_options)
-        current_output_option = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).value()
+        self._app.log_error("Output List %s" % output_options)
+        current_output_option = self.get_node_output_preset(node)
+        self._app.log_error("Output selected %s" % current_output_option)
         list_options = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values()
+        self._app.log_error("Current List %s" % list_options)
         if list_options != output_options:
             node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValues(output_options)
+        if current_output_option:
+            node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue(current_output_option)
 
         # Ensure that the output name matches the node name if
         # that option is enabled on the node. This is primarily
@@ -1918,25 +1951,9 @@ class TankWriteNodeHandler(object):
             self.__set_profile(node, new_profile_name, reset_all_settings=True)
         
         elif knob.name() == TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME:
-            output_name = knob.value()
-
-            used_output_names = set()
-            node_profile = self.get_node_profile_name(node)
-            for n in self.get_nodes():
-                if n != node and self.get_node_profile_name(n) == node_profile:
-                    used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
-
-
-
-            # # now ensure output name is unique:
-            postfix = 1
-            output_base = output_name
-            while output_name in used_output_names:
-                output_name = "%s%d" % (output_base, postfix)
-                postfix += 1
-        
-            node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).setValue(False)
-            self.__set_output(node, output_name)
+            new_preset = knob.value()
+            self.__set_output_preset(node, new_preset)
+            
 
         elif knob.name() == TankWriteNodeHandler.OUTPUT_KNOB_NAME:
             # internal cached output has been changed!
@@ -2080,7 +2097,6 @@ class TankWriteNodeHandler(object):
         
         # setup the new node:
         self.__setup_new_node(node)
-        
         # populate the initial output name based on the render template:
         render_template = self.get_render_template(node)
         self.__populate_initial_output_name(render_template, node)

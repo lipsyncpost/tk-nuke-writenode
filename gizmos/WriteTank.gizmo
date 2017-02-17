@@ -46,7 +46,8 @@ Gizmo {
     4 output_choice 
     l "Output Preset" 
     M {}
-    t "Choose an output name for this Write Node to help identify it when you have more than one output in your scene."
+    t "Choose an output name preset for this Write Node."
+    +DO_NOT_WRITE
  }
  addUserKnob {
     1 tank_channel 
@@ -72,6 +73,12 @@ Gizmo {
     1 profile_name 
     l "Profile Name" 
     t "The cached Profile for this node"
+    +INVISIBLE
+ }
+ addUserKnob {
+    1 output_preset
+    l "Output Preset" 
+    t "The cached Output Preset for this node"
     +INVISIBLE
  }
  addUserKnob {
