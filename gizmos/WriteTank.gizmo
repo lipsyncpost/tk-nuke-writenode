@@ -76,7 +76,7 @@ Gizmo {
     +INVISIBLE
  }
  addUserKnob {
-    1 output_preset
+    1 output_preset_cache
     l "Output Preset" 
     t "The cached Output Preset for this node"
     +INVISIBLE

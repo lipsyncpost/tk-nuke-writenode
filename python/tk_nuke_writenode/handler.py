@@ -133,7 +133,7 @@ class TankWriteNodeHandler(object):
 
     def get_node_output_preset(self, node):
 
-        return node.knob("output_preset").value()
+        return node.knob("output_preset_cache").value()
 
     def get_node_tank_type(self, node):
         """
@@ -453,7 +453,7 @@ class TankWriteNodeHandler(object):
             
             # output_dropdown
             knob = nuke.String_Knob("tk_output_preset")
-            knob.setValue(sg_wn["output_preset"].value())
+            knob.setValue(sg_wn["output_preset_cache"].value())
             new_wn.addKnob(knob)
 
             # output
@@ -514,7 +514,7 @@ class TankWriteNodeHandler(object):
         
             # look for additional toolkit knobs:
             profile_knob = wn.knob("tk_profile_name")
-            output_preset = wn.knob("tk_output_preset")
+            output_preset_knob = wn.knob("tk_output_preset")
             output_knob = wn.knob("tk_output")
             use_name_as_output_knob = wn.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME)
             render_template_knob = wn.knob("tk_render_template")
@@ -523,7 +523,7 @@ class TankWriteNodeHandler(object):
             proxy_publish_template_knob = wn.knob("tk_proxy_publish_template")
         
             if (not profile_knob
-                or not output_preset
+                or not output_preset_knob
                 or not output_knob
                 or not use_name_as_output_knob
                 or not render_template_knob
@@ -558,8 +558,8 @@ class TankWriteNodeHandler(object):
             profile_name = profile_knob.value()
             new_sg_wn["profile_name"].setValue(profile_name)
             new_sg_wn["tk_profile_list"].setValue(profile_name)
-            output_preset = output_preset.value()
-            new_sg_wn["output_preset"].setValue(output_preset)
+            output_preset = output_preset_knob.value()
+            new_sg_wn["output_preset_cache"].setValue(output_preset)
             new_sg_wn[TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME].setValue(output_preset)
             new_sg_wn[TankWriteNodeHandler.OUTPUT_KNOB_NAME].setValue(output_knob.value())
             new_sg_wn[TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME].setValue(use_name_as_output_knob.value())
@@ -1162,7 +1162,7 @@ class TankWriteNodeHandler(object):
 
     def __set_output_preset(self, node, new_preset):
 
-        self.__update_knob_value(node, "output_preset", new_preset)
+        self.__update_knob_value(node, "output_preset_cache", new_preset)
 
         # Set the output name based on the new preset
         output_name = new_preset
