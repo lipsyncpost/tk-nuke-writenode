@@ -1175,24 +1175,24 @@ class TankWriteNodeHandler(object):
         else:
             output_name = new_preset
 
-        used_output_names = set()
-        node_profile = self.get_node_profile_name(node)
-        for n in self.get_nodes():
-            if n != node and self.get_node_profile_name(n) == node_profile:
-                used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
+        #used_output_names = set()
+        #node_profile = self.get_node_profile_name(node)
+        #for n in self.get_nodes():
+        #    if n != node and self.get_node_profile_name(n) == node_profile:
+        #        used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
         # # now ensure output name is unique:
-        postfix = 1
-        output_base = output_name
-        while output_name in used_output_names:
-            output_name = "%s%d" % (output_base, postfix)
-            postfix += 1
+        #postfix = 1
+        #output_base = output_name
+        #while output_name in used_output_names:
+        #    output_name = "%s%d" % (output_base, postfix)
+        #    postfix += 1
    
         node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).setValue(False)
         self.__set_output(node, output_name)
         self.__update_output_knobs(node)
 
 
-    def __populate_output_settings(self, node, template, profile_name=None, reset_all_settings=False):
+    def __populate_output_settings(self, node, template, profile_name=None, reset_all_settings=True):
         
         # first, check that output is actually used in the template and determine 
         # the default value and if the key is optional.
@@ -1259,19 +1259,20 @@ class TankWriteNodeHandler(object):
         else:
             self._app.log_debug("Updating output preset on %s to %s" % (node.name(), preset_default))
             node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(preset_default)
+
             # get the output names for all other nodes that are using the same profile
-            used_output_names = set()
-            node_profile = self.get_node_profile_name(node)
-            for n in self.get_nodes():
-                if n != node and self.get_node_profile_name(n) == node_profile:
-                    used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
+            #used_output_names = set()
+            #node_profile = self.get_node_profile_name(node)
+            #for n in self.get_nodes():
+            #    if n != node and self.get_node_profile_name(n) == node_profile:
+            #        used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
 
             # now ensure output name is unique:
-            postfix = 1
+            #postfix = 1
             output_name = output_default
-            while output_name in used_output_names:
-                output_name = "%s%d" % (output_default, postfix)
-                postfix += 1
+            #while output_name in used_output_names:
+            #    output_name = "%s%d" % (output_default, postfix)
+            #    postfix += 1
         
             # finally, set the output name on the knob:
             self._app.log_debug("Default output is %s" % output_default)
