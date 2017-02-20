@@ -54,7 +54,7 @@ class TankWriteNodeHandler(object):
         self._promoted_knobs = {}
         self._profile_names = []
         self._profiles = {}
-        self._output_options = []
+        self._output_presets = []
         
         self.__currently_rendering_nodes = set()
         self.__node_computed_path_settings_cache = {}
@@ -64,7 +64,7 @@ class TankWriteNodeHandler(object):
         self.__is_updating_proxy_path = False
 
         self.populate_profiles_from_settings()
-        self.populate_output_options_from_settings()
+        self.populate_output_presets_from_settings()
             
     ################################################################################################
     # Properties
@@ -96,11 +96,11 @@ class TankWriteNodeHandler(object):
             self._profile_names.append(name)
             self._profiles[name] = profile
 
-    def populate_output_options_from_settings(self):
+    def populate_output_presets_from_settings(self):
         """
         Sources options for the output presets from the current app settings.
         """
-        self._output_options = self._app.get_setting("output_presets", ['custom'])
+        self._output_presets = self._app.get_setting("output_presets", ['custom'])
 
     def populate_script_template(self):
         """
@@ -895,16 +895,19 @@ class TankWriteNodeHandler(object):
     
     def __update_output_knobs(self, node):
         """
-        Update output knob visibility depending if output is a key
-        in the render template or not
+        Update output knob visibility of output knobs
         """
         output_knob = node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME)
         name_as_output_knob = node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME)
         dropdown_knob = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME)
+
         
         output_is_used = self.__is_output_used(node)
-        name_as_output = name_as_output_knob.value() 
+        self._app.log_debug("Output is used %s" % output_is_used )
+        name_as_output = name_as_output_knob.value()
+        self._app.log_debug("Dropdown is %s" %dropdown_knob.value() )
         dropdown_custom = dropdown_knob.value() == 'custom'
+        self._app.log_debug("Dropdown is custom %s" % dropdown_custom )
 
         dropdown_knob.setVisible(output_is_used)
 
@@ -1069,6 +1072,8 @@ class TankWriteNodeHandler(object):
         self.__update_knob_value(node, "profile_name", profile_name)
         self.__update_knob_value(node, "tk_profile_list", profile_name)
         
+        self.__populate_output_settings(node, render_template, profile_name=profile_name)
+
         # set the format
         self.__populate_format_settings(
             node,
@@ -1165,7 +1170,10 @@ class TankWriteNodeHandler(object):
         self.__update_knob_value(node, "output_preset_cache", new_preset)
 
         # Set the output name based on the new preset
-        output_name = new_preset
+        if new_preset == "None":
+            output_name = ""
+        else:
+            output_name = new_preset
 
         used_output_names = set()
         node_profile = self.get_node_profile_name(node)
@@ -1181,12 +1189,10 @@ class TankWriteNodeHandler(object):
    
         node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).setValue(False)
         self.__set_output(node, output_name)
+        self.__update_output_knobs(node)
 
-    def __populate_initial_output_name(self, template, node):
-         
-        if node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value():
-            # don't want to modify the current value if there is one
-            return
+
+    def __populate_output_settings(self, node, template, profile_name=None, reset_all_settings=False):
         
         # first, check that output is actually used in the template and determine 
         # the default value and if the key is optional.
@@ -1207,42 +1213,71 @@ class TankWriteNodeHandler(object):
             # Nothing to do!
             return
 
-        if output_default:
-            if output_default in node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values():
-                node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(output_default)
-            elif 'custom' in node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values():
-                node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue('custom')
+        output_presets = list(self._output_presets)
 
-        if output_default is None:
-            values = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values()
-            self._app.log_debug("Valid output preset options are %s" % values)
-            output_default = values[0]
-            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(output_default)
+        if profile_name is not None:
+            profile = self._profiles[profile_name]
+            if 'output_presets' in profile:
+                output_presets = list(profile['output_presets'])
 
+        current_output_preset = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).value()
+        current_output = node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value()
 
-        # get the output names for all other nodes that are using the same profile
-        used_output_names = set()
-        node_profile = self.get_node_profile_name(node)
-        for n in self.get_nodes():
-            if n != node and self.get_node_profile_name(n) == node_profile:
-                used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
-
-        # handle if output is optional:
-        if output_is_optional and "" not in used_output_names:
-            # default should be an empty string:
-            output_default = ""
-
-        # now ensure output name is unique:
-        postfix = 1
-        output_name = output_default
-        while output_name in used_output_names:
-            output_name = "%s%d" % (output_default, postfix)
-            postfix += 1
+        list_options = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values()
         
-        # finally, set the output name on the knob:
-        self._app.log_debug("Default output is %s" % output_default)
-        node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).setValue(output_name)
+        if output_is_optional:
+            if "None" not in output_presets:
+                output_presets.insert(0,"None")
+        else:
+            if "None" in output_presets:
+                output_presets.remove("None")
 
+        node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValues(output_presets)
+
+        preset_default = None
+        if output_default:
+            if output_default in output_presets:
+                preset_default = output_default
+            elif 'custom' in output_presets:
+                preset_default = 'custom'
+
+        if preset_default is None:
+            preset_default = output_presets[0]
+            if preset_default == "None":
+                output_default = ""
+            else:
+                output_default = preset_default
+
+        if not(current_output_preset and current_output):
+            reset_all_settings = True
+
+
+        if not reset_all_settings:
+            self._app.log_debug("Keeping current output settings on %s " % node)
+            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(current_output_preset)
+            node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).setValue(current_output)
+        else:
+            self._app.log_debug("Updating output preset on %s to %s" % (node, preset_default))
+            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(preset_default)
+            # get the output names for all other nodes that are using the same profile
+            used_output_names = set()
+            node_profile = self.get_node_profile_name(node)
+            for n in self.get_nodes():
+                if n != node and self.get_node_profile_name(n) == node_profile:
+                    used_output_names.add(n.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).value())
+
+            # now ensure output name is unique:
+            postfix = 1
+            output_name = output_default
+            while output_name in used_output_names:
+                output_name = "%s%d" % (output_default, postfix)
+                postfix += 1
+        
+            # finally, set the output name on the knob:
+            self._app.log_debug("Default output is %s" % output_default)
+            node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).setValue(output_name)
+
+            self.__update_output_knobs(node)
 
     def __populate_format_settings(
         self, node, file_type, file_settings, reset_all_settings=False, promoted_write_knobs=None
@@ -1531,9 +1566,6 @@ class TankWriteNodeHandler(object):
                     self.__update_knob_value(node, "tk_render_warning", "")
                     node.knob("tk_render_warning").setVisible(False)
                 
-                # update output knobs:
-                self.__update_output_knobs(node)
-    
                 # finally, update preview:
                 self.__update_path_preview(node, is_proxy)
     
@@ -1860,7 +1892,7 @@ class TankWriteNodeHandler(object):
             current_profile_name = node.knob("tk_profile_list").value()
             # and as this node has never had a profile set, lets make
             # sure we reset all settings 
-            reset_all_profile_settings = True 
+            reset_all_profile_settings = True
         
         # ensure that the correct entry is selected from the list:
         self.__update_knob_value(node, "tk_profile_list", current_profile_name)
@@ -1870,26 +1902,6 @@ class TankWriteNodeHandler(object):
         # ensure that the disable value properly propogates to the internal write node:
         write_node = node.node(TankWriteNodeHandler.WRITE_NODE_NAME)
         write_node["disable"].setValue(node["disable"].value())
-
-        output_options = list(self._output_options)
-        current_output_option = self.get_node_output_preset(node)
-        list_options = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values()
-        if list_options != output_options:
-            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValues(output_options)
-        if current_output_option:
-            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(current_output_option)
-
-        # Ensure that the output name matches the node name if
-        # that option is enabled on the node. This is primarily
-        # going to handle the situation where a node with "use name as
-        # output name" enabled is copied and pasted. When it is
-        # pasted the node will get a new name to avoid a collision
-        # and we need to make sure we update the output name to
-        # match that new name.
-        if node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME).value():
-            # force output name to be the node name:
-            new_output_name = node.knob("name").value()
-            self.__set_output(node, new_output_name)
         
         # now that the node is constructed, we can process knob changes
         # correctly.
@@ -1950,6 +1962,7 @@ class TankWriteNodeHandler(object):
         elif knob.name() == TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME:
             new_preset = knob.value()
             self.__set_output_preset(node, new_preset)
+
             
 
         elif knob.name() == TankWriteNodeHandler.OUTPUT_KNOB_NAME:
@@ -2095,8 +2108,8 @@ class TankWriteNodeHandler(object):
         # setup the new node:
         self.__setup_new_node(node)
         # populate the initial output name based on the render template:
-        render_template = self.get_render_template(node)
-        self.__populate_initial_output_name(render_template, node)
+        #render_template = self.get_render_template(node)
+        #self.__populate_initial_output_settings(render_template, node)
 
 
 
