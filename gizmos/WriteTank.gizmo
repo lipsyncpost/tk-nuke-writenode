@@ -43,7 +43,7 @@ Gizmo {
     +DO_NOT_WRITE
  }
  addUserKnob {
-    4 output_choice 
+    4 output_preset 
     l "Output Preset" 
     M {}
     t "Choose an output name preset for this Write Node."

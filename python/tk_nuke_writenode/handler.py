@@ -36,7 +36,7 @@ class TankWriteNodeHandler(object):
     SG_WRITE_DEFAULT_NAME = "ShotgunWrite"
     WRITE_NODE_NAME = "Write1"
 
-    OUTPUT_DROPDOWN_NAME = "output_choice"
+    OUTPUT_PRESET_KNOB_NAME = "output_preset"
     OUTPUT_KNOB_NAME = "tank_channel"
     USE_NAME_AS_OUTPUT_KNOB_NAME = "tk_use_name_as_channel"
 
@@ -560,7 +560,7 @@ class TankWriteNodeHandler(object):
             new_sg_wn["tk_profile_list"].setValue(profile_name)
             output_preset = output_preset.value()
             new_sg_wn["output_preset"].setValue(output_preset)
-            new_sg_wn[TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME].setValue(output_preset)
+            new_sg_wn[TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME].setValue(output_preset)
             new_sg_wn[TankWriteNodeHandler.OUTPUT_KNOB_NAME].setValue(output_knob.value())
             new_sg_wn[TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME].setValue(use_name_as_output_knob.value())
 
@@ -612,9 +612,7 @@ class TankWriteNodeHandler(object):
         be when the node is created for the first time or when it is loaded
         or imported/pasted from an existing script.
         """
-        self._app.log_error("before_setup")
         self.__setup_new_node(nuke.thisNode())
-        self._app.log_error("after_setup")
 
     def on_compute_path_gizmo_callback(self):
         """
@@ -902,7 +900,7 @@ class TankWriteNodeHandler(object):
         """
         output_knob = node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME)
         name_as_output_knob = node.knob(TankWriteNodeHandler.USE_NAME_AS_OUTPUT_KNOB_NAME)
-        dropdown_knob = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME)
+        dropdown_knob = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME)
         
         output_is_used = self.__is_output_used(node)
         name_as_output = name_as_output_knob.value() 
@@ -1205,21 +1203,21 @@ class TankWriteNodeHandler(object):
                 if output_is_optional:
                     output_is_optional = template.is_optional(key_name)                
         if not have_output_key:
-            self._app.log_debug("No output key")
+            self._app.log_debug("Output key not used in template")
             # Nothing to do!
             return
 
         if output_default:
-            if output_default in node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values():
-                node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue(output_default)
-            elif 'custom' in node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values():
-                node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue('custom')
+            if output_default in node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values():
+                node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(output_default)
+            elif 'custom' in node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values():
+                node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue('custom')
 
         if output_default is None:
-            values = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values()
-            self._app.log_debug("Valid output options are %s" % values)
+            values = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values()
+            self._app.log_debug("Valid output preset options are %s" % values)
             output_default = values[0]
-            node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue(output_default)
+            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(output_default)
 
 
         # get the output names for all other nodes that are using the same profile
@@ -1874,15 +1872,12 @@ class TankWriteNodeHandler(object):
         write_node["disable"].setValue(node["disable"].value())
 
         output_options = list(self._output_options)
-        self._app.log_error("Output List %s" % output_options)
         current_output_option = self.get_node_output_preset(node)
-        self._app.log_error("Output selected %s" % current_output_option)
-        list_options = node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).values()
-        self._app.log_error("Current List %s" % list_options)
+        list_options = node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).values()
         if list_options != output_options:
-            node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValues(output_options)
+            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValues(output_options)
         if current_output_option:
-            node.knob(TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME).setValue(current_output_option)
+            node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(current_output_option)
 
         # Ensure that the output name matches the node name if
         # that option is enabled on the node. This is primarily
@@ -1952,7 +1947,7 @@ class TankWriteNodeHandler(object):
             new_profile_name = knob.value()
             self.__set_profile(node, new_profile_name, reset_all_settings=True)
         
-        elif knob.name() == TankWriteNodeHandler.OUTPUT_DROPDOWN_NAME:
+        elif knob.name() == TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME:
             new_preset = knob.value()
             self.__set_output_preset(node, new_preset)
             
