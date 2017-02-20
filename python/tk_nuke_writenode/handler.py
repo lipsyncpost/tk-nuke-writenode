@@ -1253,11 +1253,11 @@ class TankWriteNodeHandler(object):
 
 
         if not reset_all_settings:
-            self._app.log_debug("Keeping current output settings on %s " % node)
+            self._app.log_debug("Keeping current output settings on %s " % node.name())
             node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(current_output_preset)
             node.knob(TankWriteNodeHandler.OUTPUT_KNOB_NAME).setValue(current_output)
         else:
-            self._app.log_debug("Updating output preset on %s to %s" % (node, preset_default))
+            self._app.log_debug("Updating output preset on %s to %s" % (node.name(), preset_default))
             node.knob(TankWriteNodeHandler.OUTPUT_PRESET_KNOB_NAME).setValue(preset_default)
             # get the output names for all other nodes that are using the same profile
             used_output_names = set()
@@ -2107,9 +2107,6 @@ class TankWriteNodeHandler(object):
         
         # setup the new node:
         self.__setup_new_node(node)
-        # populate the initial output name based on the render template:
-        #render_template = self.get_render_template(node)
-        #self.__populate_initial_output_settings(render_template, node)
 
 
 
