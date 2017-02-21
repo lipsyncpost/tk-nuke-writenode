@@ -905,11 +905,8 @@ class TankWriteNodeHandler(object):
 
         
         output_is_used = self.__is_output_used(node)
-        self._app.log_debug("Output is used %s" % output_is_used )
         name_as_output = name_as_output_knob.value()
-        self._app.log_debug("Dropdown is %s" %dropdown_knob.value() )
         dropdown_custom = dropdown_knob.value() == 'custom'
-        self._app.log_debug("Dropdown is custom %s" % dropdown_custom )
 
         dropdown_knob.setVisible(output_is_used)
         output_knob.setVisible(output_is_used)
