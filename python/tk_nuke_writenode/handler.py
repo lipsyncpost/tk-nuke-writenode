@@ -915,9 +915,12 @@ class TankWriteNodeHandler(object):
         output_knob.setVisible(output_is_used)
         name_as_output_knob.setVisible(output_is_used)
 
+
+
         if output_is_used:
             output_knob.setEnabled(dropdown_custom and not name_as_output)
             name_as_output_knob.setEnabled(dropdown_custom)
+            name_as_output_knob.setValue(name_as_output_knob.value() and dropdown_custom)
         
     def __update_path_preview(self, node, is_proxy):
         """
