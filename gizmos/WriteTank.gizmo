@@ -287,12 +287,17 @@ Gizmo {
     T Write1.use_limit
     -STARTLINE
  }
- 
  addUserKnob {
     41 reading 
     l "read file" 
     T Write1.reading
  }
+ addUserKnob {
+     41 cropToRootResolution
+     l "disable crop to root resolution"
+     t "disable vrop to root resolution"
+     T crop_to_root_resolution.disable
+}
  addUserKnob {
     41 checkHashOnRead 
     l "" 
@@ -435,32 +440,39 @@ Gizmo {
   xpos 195
   ypos -74
  }
+ Reformat {
+  name crop_to_root_resolution
+  xpos 195
+  ypos -36
+  disable false
+ }
  Write {
-  file  "\[python __import__('nuke')._shotgun_write_node_handler.on_compute_path_gizmo_callback() if hasattr(__import__('nuke'), '_shotgun_write_node_handler') else nuke.thisParent().knob('cached_path').value()]"
+  file "\[python __import__('nuke')._shotgun_write_node_handler.on_compute_path_gizmo_callback() if hasattr(__import__('nuke'), '_shotgun_write_node_handler') else nuke.thisParent().knob('cached_path').value()]"
   proxy "\[python __import__('nuke')._shotgun_write_node_handler.on_compute_proxy_path_gizmo_callback() if hasattr(__import__('nuke'), '_shotgun_write_node_handler') else nuke.thisParent().knob('tk_cached_proxy_path').value()]"
+  in_colorspace acescg
+  out_colorspace acescg
   beforeRender "import nuke\nif hasattr(nuke, \"_shotgun_write_node_handler\"):\n    nuke._shotgun_write_node_handler.on_before_render_gizmo_callback()"
   afterRender "import nuke\nif hasattr(nuke, \"_shotgun_write_node_handler\"):\n    nuke._shotgun_write_node_handler.on_after_render_gizmo_callback()"
   name Write1
-  xpos 195
-  ypos -34
   knobChanged "import nuke\nif hasattr(nuke, \"_shotgun_write_node_handler\"):\n    nuke._shotgun_write_node_handler.on_knob_changed_gizmo_callback()"
-
+  xpos 195
+  ypos 3
  }
-set N11879e50 [stack 0]
+set Nb43cb20 [stack 0]
  Output {
   name Output1
   xpos 195
   ypos 66
  }
-push $N11879e50
+push $Nb43cb20
  Reformat {
   type "to box"
   box_width 800
   box_height 1
   black_outside true
   name Reformat1
-  xpos 249
-  ypos 16
+  xpos 261
+  ypos 36
  }
  Write {
   file_type png
