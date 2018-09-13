@@ -294,8 +294,8 @@ Gizmo {
  }
  addUserKnob {
      41 cropToRootResolution
-     l "do not crop to root resolution"
-     t "do not crop to root resolution"
+     l "do not crop to input resolution and pixel aspect ratio"
+     t "do not crop to input resolution and pixel aspect ratio"
      T crop_to_root_resolution.disable
 }
  addUserKnob {
