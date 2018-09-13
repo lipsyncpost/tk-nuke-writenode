@@ -294,8 +294,8 @@ Gizmo {
  }
  addUserKnob {
      41 cropToRootResolution
-     l "disable crop to root resolution"
-     t "disable vrop to root resolution"
+     l "do not crop to root resolution"
+     t "do not crop to root resolution"
      T crop_to_root_resolution.disable
 }
  addUserKnob {
@@ -442,6 +442,11 @@ Gizmo {
  }
  Reformat {
   name crop_to_root_resolution
+  type "to box"
+  box_width {{input.width()}}
+  box_height {{input.height()}}
+  box_fixed true
+  box_pixel_aspect {{format.pixel_aspect}}
   xpos 195
   ypos -36
   disable false
