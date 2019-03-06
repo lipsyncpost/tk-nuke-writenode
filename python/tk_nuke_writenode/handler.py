@@ -399,6 +399,9 @@ class TankWriteNodeHandler(object):
         app = eng.apps["tk-nuke-writenode"]
         # Convert Shotgun write nodes to Nuke write nodes:
         app.convert_to_write_nodes()
+
+        :param create_folders: When set to true, it will create the folders on disk for the render and proxy paths.
+         Defaults to false.
         """
         # clear current selection:
         nukescripts.clear_selection_recursive()
@@ -440,6 +443,10 @@ class TankWriteNodeHandler(object):
                     except TypeError:
                         # ignore type errors:
                         pass
+
+            # Set the nuke write node to have create directories ticked on by default
+            # As toolkit hasn't created the output folder at this point.
+            new_wn["create_directories"].setValue(True)
         
             # copy across select knob values from the Shotgun Write node:
             for knob_name in ["tile_color", "postage_stamp", "label"]:
@@ -614,6 +621,13 @@ class TankWriteNodeHandler(object):
         be when the node is created for the first time or when it is loaded
         or imported/pasted from an existing script.
         """
+        # NOTE: Future self or other person: every time we touch this method to
+        # try to fix one of the PythonObject ValueErrors that Nuke occasionally
+        # raises on file open, it breaks something for someone. Most recently, it
+        # was farm setups for a few clients. It's best if we just leave this
+        # alone from now on, unless we someday have a better understanding of
+        # what's going on and the consequences of changing the on_node_created
+        # behavior.
         self.__setup_new_node(nuke.thisNode())
 
     def on_compute_path_gizmo_callback(self):
@@ -1263,34 +1277,6 @@ class TankWriteNodeHandler(object):
         # get the embedded write node
         write_node = node.node(TankWriteNodeHandler.WRITE_NODE_NAME)
         promoted_write_knobs = promoted_write_knobs or []
-
-        # If we're not resetting everything, then we need to try and
-        # make sure that the settings that the user made to the internal
-        # write knobs are retained. The reason for this is that promoted
-        # write knobs are handled by pre-defined link knobs, which are
-        # left unlinked in the gizmo itself. This means that their values
-        # are not properly written to the .nk file on save, and will
-        # revert to default settings on load. On save of the .nk file, we
-        # store a sanitized and serialized chunk of .nk script representing
-        # all non-default knob values in a hidden knob "tk_write_node_settings".
-        # Right here, we are deserializing that data and reapplying it to
-        # the internal write node. After this is done, we continue with
-        # the normal format settings logic, which will handle setting
-        # any non-promoted knobs to their preset values.
-        if not reset_all_settings:
-            tcl_settings = node.knob("tk_write_node_settings").value()
-            if tcl_settings:
-                knob_settings = pickle.loads(str(base64.b64decode(tcl_settings)))
-                # We need to remove the "file" and "proxy" settings that are always
-                # going to be baked into these knob settings. If we don't, the baked-out
-                # paths will replace the expressions that we have hooked up for those
-                # knobs.
-                filtered_settings = []
-                for setting in re.split(r"\n", knob_settings):
-                    if not setting.startswith("file ") and not setting.startswith("proxy "):
-                        filtered_settings.append(setting)
-                write_node.readKnobs(r"\n".join(filtered_settings))
-                self.reset_render_path(node)
         
         # set the file_type
         write_node.knob("file_type").setValue(file_type)
@@ -1332,6 +1318,55 @@ class TankWriteNodeHandler(object):
             if knob.value() != setting_value:
                 self._app.log_error("Could not set %s file format setting %s to '%s'. Instead the value was set to '%s'" 
                                     % (file_type, setting_name, setting_value, knob.value()))
+
+        # If we're not resetting everything, then we need to try and
+        # make sure that the settings that the user made to the internal
+        # write knobs are retained. The reason for this is that promoted
+        # write knobs are handled by pre-defined link knobs, which are
+        # left unlinked in the gizmo itself. This means that their values
+        # are not properly written to the .nk file on save, and will
+        # revert to default settings on load. On save of the .nk file, we
+        # store a sanitized and serialized chunk of .nk script representing
+        # all non-default knob values in a hidden knob "tk_write_node_settings".
+        # Right here, we are deserializing that data and reapplying it to
+        # the internal write node.
+        if not reset_all_settings:
+            tcl_settings = node.knob("tk_write_node_settings").value()
+
+            if tcl_settings:
+                knob_settings = pickle.loads(str(base64.b64decode(tcl_settings)))
+                # We're going to filter out everything that isn't one of our
+                # promoted write node knobs. This will allow us to make sure
+                # that those knobs are set to the correct value, regardless
+                # of what the profile settings above have done.
+                filtered_settings = []
+
+                # Example data after splitting:
+                #
+                # ['',
+                #  'file /some/path/to/an/image.exr',
+                #  'proxy /some/path/to/an/image.exr',
+                #  'file_type exr',
+                #  'datatype "32 bit float"',
+                #  'beforeRender "<beforeRender callback script>"',
+                #  'afterRender "<afterRender callback script>"']
+                for setting in re.split(r"\n", knob_settings):
+                    # We match the name of the knob, which is everything up to
+                    # the first space character. From the example data above,
+                    # that would be something like "datatype".
+                    match = re.match(r"(\S+)\s.*", setting)
+                    if match:
+                        if match.group(1) in promoted_write_knobs:
+                            self._app.log_debug(
+                                "Found promoted write node knob setting: %s" % setting
+                            )
+                            filtered_settings.append(setting)
+
+                self._app.log_debug(
+                    "Promoted write node knob settings to be applied: %s" % filtered_settings
+                )
+                write_node.readKnobs("\n".join(filtered_settings))
+                self.reset_render_path(node)
 
     def __set_output(self, node, output_name):
         """
@@ -1820,8 +1855,18 @@ class TankWriteNodeHandler(object):
                 
     def __setup_new_node(self, node):
         """
-        Setup a node when it's created (either directly or as a result of loading a script).  This
-        allows us to dynamically populate the profile list.
+        Setup a node when it's created (either directly or as a result of loading a script).
+        This allows us to dynamically populate the profile list.
+
+        This method will re-process the node and reapply settings in case it has
+        been previously processed.
+
+        .. note:: There are edge cases in Nuke where a node has already been previously
+                  set up but for another context - this can happen as a consequence of
+                  bugs in the automatic context switching. It is therefore not safe to
+                  assume that setting up of these nodes only needs to happen once -
+                  it needs to happen whenever the toolkit write node configuration
+                  changes.
         
         :param node:    The Shotgun Write Node to set up
         """
@@ -1830,12 +1875,13 @@ class TankWriteNodeHandler(object):
         if not isinstance(node, nuke.Gizmo):
             return
         
-        if self.__is_node_fully_constructed(node):
-            # node has already been constructed for this session!
-            return
-        
         self._app.log_debug("Setting up new node...")
-        
+
+        # reset the construction flag to ensure that
+        # the node is toggled into its incomplete state
+        # this will disable certain callbacks from firing.
+        self.__set_final_construction_flag(node, False)
+
         # populate the profiles list as this isn't stored with the file and is
         # dynamic based on the user's configuration
         profile_names = list(self._profile_names)
@@ -1867,11 +1913,25 @@ class TankWriteNodeHandler(object):
         write_node = node.node(TankWriteNodeHandler.WRITE_NODE_NAME)
         write_node["disable"].setValue(node["disable"].value())
         
-        # now that the node is constructed, we can process knob changes
-        # correctly.
-        node.knob("tk_is_fully_constructed").setValue(True)
-        node.knob("tk_is_fully_constructed").setEnabled(False)
-    
+        # now that the node is constructed, we can process
+        # knob changes correctly.
+        self.__set_final_construction_flag(node, True)
+
+    def __set_final_construction_flag(self, node, status):
+        """
+        Controls the flag that indicates that a node has been
+        finalized.
+
+        :param node: nuke node object
+        :param status: boolean flag to indicating finalized state.
+        """
+        if status:
+            node.knob("tk_is_fully_constructed").setValue(True)
+            node.knob("tk_is_fully_constructed").setEnabled(False)
+        else:
+            node.knob("tk_is_fully_constructed").setEnabled(True)
+            node.knob("tk_is_fully_constructed").setValue(False)
+
     def __is_node_fully_constructed(self, node):
         """
         The tk_is_fully_constructed knob is set to True after the onCreate callback has completed.  This
