@@ -1121,6 +1121,8 @@ class TankWriteNodeHandler(object):
             if not target_knob:
                 self._app.log_warning("Knob %s does not exist and will not be promoted." % knob_name)
                 continue
+            if knob_name == "create_directories":
+                write_node.knob("create_directories").setValue(True)
 
             link_name = "_promoted_" + str(i)
 
@@ -1143,6 +1145,7 @@ class TankWriteNodeHandler(object):
             label = target_knob.label() or knob_name
             link_knob.setLabel(label)
             link_knob.clearFlag(nuke.INVISIBLE)
+
             self._promoted_knobs[node].append(link_knob)
 
         # Adding knobs might have caused us to jump tabs, so we will set
