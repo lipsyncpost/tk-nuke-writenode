@@ -20,10 +20,148 @@ import inspect
 
 import nuke
 import nukescripts
+import PyOpenColorIO as OCIO
 
 import tank
 from tank import TankError
 from tank.platform import constants
+
+
+OCIO_COLORSPACE_TO_ALIAS = {
+    "ACES - ACES2065-1": "aces", 
+    "ACES - ACEScc": "acescc", 
+    "ACES - ACEScct": "acescct", 
+    "ACES - ACEScg": "acescg", 
+    "ACES - ACESproxy": "acesproxy", 
+    "Input - ADX - ADX10": "adx10", 
+    "Input - ADX - ADX16": "adx16", 
+    "Input - ARRI - Curve - V3 LogC (EI800)": "crv-logc3ei800", 
+    "Input - ARRI - Linear - ALEXA Wide Gamut": "lin-alexawide", 
+    "Input - ARRI - V3 LogC (EI1000) - Wide Gamut": "logc3ei1000-alexawide", 
+    "Input - ARRI - V3 LogC (EI1280) - Wide Gamut": "logc3ei1280-alexawide", 
+    "Input - ARRI - V3 LogC (EI160) - Wide Gamut": "logc3ei160-alexawide", 
+    "Input - ARRI - V3 LogC (EI1600) - Wide Gamut": "logc3ei1600-alexawide", 
+    "Input - ARRI - V3 LogC (EI200) - Wide Gamut": "logc3ei200-alexawide", 
+    "Input - ARRI - V3 LogC (EI2000) - Wide Gamut": "logc3ei2000-alexawide", 
+    "Input - ARRI - V3 LogC (EI250) - Wide Gamut": "logc3ei250-alexawide", 
+    "Input - ARRI - V3 LogC (EI2560) - Wide Gamut": "logc3ei2560-alexawide", 
+    "Input - ARRI - V3 LogC (EI320) - Wide Gamut": "logc3ei320-alexawide", 
+    "Input - ARRI - V3 LogC (EI3200) - Wide Gamut": "logc3ei3200-alexawide", 
+    "Input - ARRI - V3 LogC (EI400) - Wide Gamut": "logc3ei400-alexawide", 
+    "Input - ARRI - V3 LogC (EI500) - Wide Gamut": "logc3ei500-alexawide", 
+    "Input - ARRI - V3 LogC (EI640) - Wide Gamut": "logc3ei640-alexawide", 
+    "Input - ARRI - V3 LogC (EI800) - Wide Gamut": "logc3ei800-alexawide", 
+    "Input - Canon - Canon-Log - Cinema Gamut Daylight": "canonlog-cgamutday", 
+    "Input - Canon - Canon-Log - Cinema Gamut Tungsten": "canonlog-cgamuttung", 
+    "Input - Canon - Canon-Log - DCI-P3 Daylight": "canonlog-dcip3day", 
+    "Input - Canon - Canon-Log - DCI-P3 Tungsten": "canonlog-dcip3tung", 
+    "Input - Canon - Canon-Log - Rec. 2020 Daylight": "canonlog-rec2020day", 
+    "Input - Canon - Canon-Log - Rec. 2020 Tungsten": "canonlog-rec2020tung", 
+    "Input - Canon - Canon-Log - Rec. 709 Daylight": "canonlog-rec709day", 
+    "Input - Canon - Canon-Log - Rec. 709 Tungsten": "canonlog-rec709tung", 
+    "Input - Canon - Canon-Log2 - Cinema Gamut Daylight": "canonlog2-cgamutday", 
+    "Input - Canon - Canon-Log2 - Cinema Gamut Tungsten": "canonlog2-cgamuttung", 
+    "Input - Canon - Canon-Log2 - Rec. 2020 Daylight": "canonlog2-rec2020day", 
+    "Input - Canon - Canon-Log2 - Rec. 2020 Tungsten": "canonlog2-rec2020tung", 
+    "Input - Canon - Canon-Log3 - Cinema Gamut Daylight": "canonlog3-cgamutday", 
+    "Input - Canon - Canon-Log3 - Cinema Gamut Tungsten": "canonlog3-cgamuttung", 
+    "Input - Canon - Canon-Log3 - Rec. 2020 Daylight": "canonlog3-rec2020day", 
+    "Input - Canon - Canon-Log3 - Rec. 2020 Tungsten": "canonlog3-rec2020tung", 
+    "Input - Canon - Curve - Canon-Log": "crv-canonlog", 
+    "Input - Canon - Curve - Canon-Log2": "crv-canonlog2", 
+    "Input - Canon - Curve - Canon-Log3": "crv-canonlog3", 
+    "Input - Canon - Linear - Canon Cinema Gamut Daylight": "lin-canoncgamutday", 
+    "Input - Canon - Linear - Canon Cinema Gamut Tungsten": "lin-canoncgamuttung", 
+    "Input - Canon - Linear - Canon DCI-P3 Daylight": "lin-canondcip3day", 
+    "Input - Canon - Linear - Canon DCI-P3 Tungsten": "lin-canondcip3tung", 
+    "Input - Canon - Linear - Canon Rec. 2020 Daylight": "lin-canonrec2020day", 
+    "Input - Canon - Linear - Canon Rec. 2020 Tungsten": "lin-canonrec2020tung", 
+    "Input - Canon - Linear - Canon Rec. 709 Daylight": "lin-canonrec709day", 
+    "Input - Canon - Linear - Canon Rec. 709 Tungsten": "lin-canonrec709tung", 
+    "Input - GoPro - Curve - Protune Flat": "crv-protuneflat", 
+    "Input - GoPro - Linear - Protune Native - Experimental": "lin-protunegamutexp", 
+    "Input - GoPro - Protune Flat - Protune Native - Experimental": "protuneflat-protunegamutexp", 
+    "Input - Panasonic - Curve - V-Log": "crv-vlog", 
+    "Input - Panasonic - Linear - V-Gamut": "lin-vgamut", 
+    "Input - Panasonic - V-Log - V-Gamut": "vlog-vgamut", 
+    "Input - RED - Curve - REDLog3G10": "crv-rl3g10", 
+    "Input - RED - Curve - REDlogFilm": "crv-rlf", 
+    "Input - RED - Linear - DRAGONcolor": "lin-dgn", 
+    "Input - RED - Linear - DRAGONcolor2": "lin-dgn2", 
+    "Input - RED - Linear - REDWideGamutRGB": "lin-rwg", 
+    "Input - RED - Linear - REDcolor": "lin-rc", 
+    "Input - RED - Linear - REDcolor2": "lin-rc2", 
+    "Input - RED - Linear - REDcolor3": "lin-rc3", 
+    "Input - RED - Linear - REDcolor4": "lin-rc4", 
+    "Input - RED - REDLog3G10 - REDWideGamutRGB": "rl3g10-rwg", 
+    "Input - RED - REDlogFilm - DRAGONcolor": "rlf-dgn", 
+    "Input - RED - REDlogFilm - DRAGONcolor2": "rlf-dgn2", 
+    "Input - RED - REDlogFilm - REDcolor": "rlf-rc", 
+    "Input - RED - REDlogFilm - REDcolor2": "rlf-rc2", 
+    "Input - RED - REDlogFilm - REDcolor3": "rlf-rc3", 
+    "Input - RED - REDlogFilm - REDcolor4": "rlf-rc4", 
+    "Input - Sony - Curve - S-Log1": "crv-slog1", 
+    "Input - Sony - Curve - S-Log2": "crv-slog2", 
+    "Input - Sony - Curve - S-Log3": "crv-slog3", 
+    "Input - Sony - Linear - S-Gamut": "lin-sgamut", 
+    "Input - Sony - Linear - S-Gamut Daylight": "lin-sgamutday", 
+    "Input - Sony - Linear - S-Gamut Tungsten": "lin-sgamuttung", 
+    "Input - Sony - Linear - S-Gamut3": "lin-sgamut3", 
+    "Input - Sony - Linear - S-Gamut3.Cine": "lin-sgamut3cine", 
+    "Input - Sony - S-Log1 - S-Gamut": "slog1-sgamut", 
+    "Input - Sony - S-Log2 - S-Gamut": "slog2-sgamut", 
+    "Input - Sony - S-Log2 - S-Gamut Daylight": "slog2-sgamutday", 
+    "Input - Sony - S-Log2 - S-Gamut Tungsten": "slog2-sgamuttung", 
+    "Input - Sony - S-Log3 - S-Gamut3": "slog3-sgamut3", 
+    "Input - Sony - S-Log3 - S-Gamut3.Cine": "slog3-sgamutcine", 
+    "Output - DCDM": "out-dcdm", 
+    "Output - DCDM (P3 gamut clip)": "out-dcdmp3gamutclip", 
+    "Output - P3-D60": "out-p3d60", 
+    "Output - P3-D60 ST2084 (1000 nits)": "out-p3d60st20841000nits", 
+    "Output - P3-D60 ST2084 (2000 nits)": "out-p3d60st20842000nits", 
+    "Output - P3-D60 ST2084 (4000 nits)": "out-p3d60st20844000nits", 
+    "Output - P3-DCI": "out-p3dci", 
+    "Output - Rec.2020": "out-rec2020", 
+    "Output - Rec.2020 ST2084 (1000 nits)": "out-rec2020st20841000nits", 
+    "Output - Rec.709": "rec709", 
+    "Output - Rec.709 (D60 sim.)": "out-rec709d60sim", 
+    "Output - sRGB": "srgb", 
+    "Output - sRGB (D60 sim.)": "out-srgbd60sim", 
+    "Utility - Curve - Rec.1886": "crv-rec1886", 
+    "Utility - Curve - Rec.2020": "crv-rec2020", 
+    "Utility - Curve - Rec.709": "crv-rec709", 
+    "Utility - Curve - sRGB": "crv-srgb", 
+    "Utility - Dolby PQ 1000 nits Shaper": "crv-dolbypq1000nitsshaper", 
+    "Utility - Dolby PQ 10000": "crv-dolbypq_10000", 
+    "Utility - Dolby PQ 2000 nits Shaper": "crv-dolbypq2000nitsshaper", 
+    "Utility - Dolby PQ 4000 nits Shaper": "crv-dolbypq4000nitsshaper", 
+    "Utility - Dolby PQ 48 nits Shaper": "crv-dolbypq48nitsshaper", 
+    "Utility - LMT Shaper": "crv-lmtshaper", 
+    "Utility - Linear - Adobe RGB": "lin-adobergb", 
+    "Utility - Linear - Adobe Wide Gamut RGB": "lin-adobewidegamutrgb", 
+    "Utility - Linear - P3-D60": "lin-p3d60", 
+    "Utility - Linear - P3-D65": "lin-p3d65", 
+    "Utility - Linear - P3-DCI": "lin-p3dci", 
+    "Utility - Linear - RIMM ROMM (ProPhoto)": "lin-rimm", 
+    "Utility - Linear - Rec.2020": "lin-rec2020", 
+    "Utility - Linear - Rec.709": "lin-rec709", 
+    "Utility - Linear - sRGB": "lin-srgb", 
+    "Utility - Log2 1000 nits Shaper": "crv-log21000nitsshaper", 
+    "Utility - Log2 2000 nits Shaper": "crv-log22000nitsshaper", 
+    "Utility - Log2 4000 nits Shaper": "crv-log24000nitsshaper", 
+    "Utility - Log2 48 nits Shaper": "crv-log248nitsshaper", 
+    "Utility - Look - ACES 1.0 to 0.1 emulation": "look-aces10to01emulation", 
+    "Utility - Look - ACES 1.0 to 0.2 emulation": "look-aces10to02emulation", 
+    "Utility - Look - ACES 1.0 to 0.7 emulation": "look-aces10to07emulation", 
+    "Utility - Raw": "raw", 
+    "Utility - Rec.2020 - Camera": "rec2020-camera", 
+    "Utility - Rec.2020 - Display": "rec2020-display", 
+    "Utility - Rec.709 - Camera": "rec709-camera", 
+    "Utility - Rec.709 - Display": "rec709-display", 
+    "Utility - XYZ - D60": "lin-xyz-d60", 
+    "Utility - sRGB - Texture": "srgb-tex", 
+    "cineon": "logc"
+}
 
 # Special exception raised when the work file cannot be resolved.
 class TkComputePathError(TankError):
@@ -1762,11 +1900,29 @@ class TankWriteNodeHandler(object):
         # use %V - full view printout as default for the eye field
         fields["eye"] = "%V"
 
+        # create roles to colorspace dictionary
+        ocio_role_to_colorspace = {}
+        try:
+            config = OCIO.GetCurrentConfig()
+            for i in range(config.getNumRoles()):
+                role_name = config.getRoleName(i)
+                if role_name != "":
+                    ocio_role_to_colorspace[config.getRoleName(i)] = config.getColorSpace(role_name).getName()
+        except AttributeError:
+            pass
+
         # get the colourspace or set to raw if raw data checked
         if node.knob('raw').value():
             fields["colorspace"] = "raw"
         else:
-            fields["colorspace"] = node.knob('colorspace').value()
+            if node.knob('colorspace').value() in OCIO_COLORSPACE_TO_ALIAS:
+                fields['colorspace'] = OCIO_COLORSPACE_TO_ALIAS.get(node.knob('colorspace').value())
+            elif node.knob('colorspace').value() in ocio_role_to_colorspace:
+                fields['colorspace'] = ocio_role_to_colorspace.get(node.knob('colorspace').value())
+            elif node.knob('colorspace').value() == "default (aces)":
+                fields["colorspace"] = "aces"
+            else:
+                fields["colorspace"] = node.knob('colorspace').value()
 
         # add in width & height:
         fields["width"] = width
